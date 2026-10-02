@@ -428,7 +428,7 @@ namespace dxvk {
                                  /* | D3DCAPS2_CANMANAGERESOURCE */
                                     | D3DCAPS2_DYNAMICTEXTURES
                                     | D3DCAPS2_CANAUTOGENMIPMAP
-                                 /* | D3DCAPS2_CANSHARERESOURCE */;
+                                    | D3DCAPS2_CANSHARERESOURCE;
     // Caps 3
     pCaps->Caps3                    = D3DCAPS3_ALPHA_FULLSCREEN_FLIP_OR_DISCARD
                                     | D3DCAPS3_LINEAR_TO_SRGB_PRESENTATION

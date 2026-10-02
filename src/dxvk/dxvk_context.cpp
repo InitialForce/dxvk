@@ -9706,8 +9706,21 @@ namespace dxvk {
 
     for (const auto& image : m_nonDefaultLayoutImages) {
       if (image->info().shared)
-        hasSharedClear = flushDeferredClear(*image, image->getAvailableSubresources());
+        hasSharedClear |= flushDeferredClear(*image, image->getAvailableSubresources());
     }
+
+    // A shared image whose only pending work is a deferred clear never left
+    // its default layout, so the loop above does not see it. Another device
+    // reads the memory directly, so the clear has to be executed now.
+    small_vector<Rc<DxvkImage>, 4> sharedClearImages;
+
+    for (const auto& clear : m_deferredClears) {
+      if (clear.imageView->image()->info().shared)
+        sharedClearImages.push_back(clear.imageView->image());
+    }
+
+    for (const auto& image : sharedClearImages)
+      hasSharedClear |= flushDeferredClear(*image, image->getAvailableSubresources());
 
     if (hasSharedClear)
       flushBarriers();

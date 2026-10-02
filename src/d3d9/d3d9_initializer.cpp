@@ -52,7 +52,10 @@ namespace dxvk {
         throw DxvkError("D3D9: InitTexture: map failed");
     }
 
-    if (pTexture->GetImage() != nullptr)
+    // An imported shared image already holds the exporter's contents and is
+    // created in its final layout, so it must not be cleared here.
+    if (pTexture->GetImage() != nullptr
+     && pTexture->GetImage()->info().sharing.mode != DxvkSharedHandleMode::Import)
       InitDeviceLocalTexture(pTexture);
 
     if (mapPtr != nullptr) {
