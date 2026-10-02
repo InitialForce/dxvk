@@ -364,6 +364,18 @@ namespace dxvk {
 
     void MarkAllNeedReadback() { m_needsReadback.setAll(); }
 
+    /**
+     * \brief Application memory backing a D3D9Ex system memory surface
+     *
+     * On D3D9Ex, the pSharedHandle argument of a D3DPOOL_SYSTEMMEM surface
+     * can point to application memory, which the surface then uses as its
+     * storage. Writes by the device, such as GetRenderTargetData, must land
+     * in that memory, and the application may write it directly.
+     */
+    void SetUserMemory(void* pMemory) { m_userMemory = pMemory; }
+
+    void* GetUserMemory() const { return m_userMemory; }
+
     const Rc<DxvkImageView>& GetSampleView(bool srgb) const {
       return m_sampleView.Pick(srgb && IsSrgbCompatible());
     }
@@ -529,6 +541,8 @@ namespace dxvk {
     D3D9SubresourceBitset         m_locked = { };
 
     D3D9SubresourceBitset         m_needsReadback = { };
+
+    void*                         m_userMemory = nullptr;
 
     D3D9SubresourceBitset         m_needsUpload = { };
 

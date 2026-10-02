@@ -859,6 +859,19 @@ namespace dxvk {
             UINT                    MipLevel);
 
     /**
+     * \brief Copies between a system memory texture and its application memory
+     *
+     * Only does something for D3D9Ex system memory surfaces created on
+     * application memory, see \ref D3D9CommonTexture::SetUserMemory.
+     * \param [in] pResource The texture
+     * \param [in] ToUserMemory True to copy the texture into the application
+     *   memory, false to copy the application memory into the texture
+     */
+    void SyncUserMemory(
+            D3D9CommonTexture*      pResource,
+            bool                    ToUserMemory);
+
+    /**
      * \brief Uploads the given texture subresource from its local system memory copy.
      */
     HRESULT FlushImage(

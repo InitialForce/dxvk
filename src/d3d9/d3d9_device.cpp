@@ -658,6 +658,7 @@ namespace dxvk {
       const Com<D3D9Texture2D> texture = new D3D9Texture2D(this, &desc, isExtended, pSharedHandle);
 
       m_initializer->InitTexture(texture->GetCommonTexture(), initialData);
+      texture->GetCommonTexture()->SetUserMemory(initialData);
       *ppTexture = texture.ref();
 
       if (desc.Pool == D3DPOOL_DEFAULT)
@@ -982,6 +983,8 @@ namespace dxvk {
     if (unlikely(srcTextureInfo->Desc()->MultiSample != D3DMULTISAMPLE_NONE))
       return D3DERR_INVALIDCALL;
 
+    SyncUserMemory(srcTextureInfo, false);
+
     if (unlikely(dstTextureInfo->Desc()->MultiSample != D3DMULTISAMPLE_NONE))
       return D3DERR_INVALIDCALL;
 
@@ -1059,6 +1062,8 @@ namespace dxvk {
 
     if (unlikely(srcTexInfo->IsAutomaticMip() && !dstTexInfo->IsAutomaticMip()))
       return D3DERR_INVALIDCALL;
+
+    SyncUserMemory(srcTexInfo, false);
 
     const Rc<DxvkImage> dstImage  = dstTexInfo->GetImage();
     uint32_t srcMipLevels = srcTexInfo->IsAutomaticMip() ? 1 : srcTexInfo->Desc()->MipLevels;
@@ -1192,6 +1197,7 @@ namespace dxvk {
 
     dstTexInfo->SetNeedsReadback(dst->GetSubresource(), true);
     TrackTextureMappingBufferSequenceNumber(dstTexInfo, dst->GetSubresource());
+    SyncUserMemory(dstTexInfo, true);
 
     return D3D_OK;
   }
@@ -4404,6 +4410,7 @@ namespace dxvk {
       const bool isExtended = m_d3dCompatibility.test(D3DCompatibility::D3D9Ex);
       const Com<D3D9Surface> surface = new D3D9Surface(this, &desc, isExtended, nullptr, pSharedHandle);
       m_initializer->InitTexture(surface->GetCommonTexture(), initialData);
+      surface->GetCommonTexture()->SetUserMemory(initialData);
       *ppSurface = surface.ref();
 
       if (desc.Pool == D3DPOOL_DEFAULT)
@@ -5205,6 +5212,40 @@ namespace dxvk {
     data += offset;
     pLockedBox->pBits = data;
     return D3D_OK;
+  }
+
+
+  void D3D9DeviceEx::SyncUserMemory(
+          D3D9CommonTexture*      pResource,
+          bool                    ToUserMemory) {
+    auto* userMemory = static_cast<uint8_t*>(pResource->GetUserMemory());
+
+    if (likely(userMemory == nullptr))
+      return;
+
+    // Application memory is only accepted for textures with one subresource,
+    // and its rows are packed without padding.
+    D3DLOCKED_BOX box = { };
+
+    if (FAILED(LockImage(pResource, 0, 0, &box, nullptr, ToUserMemory ? D3DLOCK_READONLY : 0)))
+      return;
+
+    VkExtent3D mipExtent = pResource->GetExtentMip(0);
+    const DxvkFormatInfo* formatInfo = lookupFormatInfo(pResource->GetFormatMapping().Format);
+    VkExtent3D blockCount = util::computeBlockCount(mipExtent, formatInfo->blockSize);
+    uint32_t pitch = blockCount.width * formatInfo->elementSize;
+
+    for (uint32_t y = 0; y < blockCount.height; y++) {
+      uint8_t* lockedRow = static_cast<uint8_t*>(box.pBits) + y * box.RowPitch;
+      uint8_t* userRow = userMemory + y * pitch;
+
+      if (ToUserMemory)
+        std::memcpy(userRow, lockedRow, pitch);
+      else
+        std::memcpy(lockedRow, userRow, pitch);
+    }
+
+    UnlockImage(pResource, 0, 0);
   }
 
 
