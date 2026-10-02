@@ -34,6 +34,10 @@ namespace dxvk {
     uint64_t AddCommandList(
             D3D11CommandList*   pCommandList);
 
+    uint64_t GetChunkCount() const {
+      return m_chunks.size();
+    }
+
     void EmitToCsThread(
       const D3D11ChunkDispatchProc& DispatchProc);
 

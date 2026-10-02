@@ -402,7 +402,9 @@ namespace dxvk {
 
 
   uint64_t D3D11DeferredContext::GetCurrentChunkId() const {
-    return m_csChunk->empty() ? m_chunkId : m_chunkId + 1;
+    // An open chunk gets the next index when it is emitted. Use the chunk count for
+    // that, since m_chunkId is also 0 before the first chunk of a new command list.
+    return m_csChunk->empty() ? m_chunkId : m_commandList->GetChunkCount();
   }
 
 
