@@ -311,6 +311,9 @@ namespace dxvk {
     for (uint32_t i = 0; i < numAdapters; i++) {
       Rc<DxvkAdapter> adapter = new DxvkAdapter(*this, adapters[i]);
 
+      if (deviceProperties[i].deviceType == VK_PHYSICAL_DEVICE_TYPE_CPU && m_warpAdapter == nullptr)
+        m_warpAdapter = adapter;
+
       if (filter.testAdapter(*adapter)) {
         if (deviceProperties[i].deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
           numDGPU += 1;

@@ -390,6 +390,15 @@ namespace dxvk {
           void**                ppvAdapter) {
     InitReturnPtr(ppvAdapter);
 
+    // A CPU Vulkan device stands in for WARP. Its index comes after the
+    // enumerated adapters, so its generated LUID differs from theirs.
+    Rc<DxvkAdapter> warpAdapter = m_instance->warpAdapter();
+
+    if (warpAdapter != nullptr) {
+      Com<IDXGIAdapter1> adapter = new DxgiAdapter(this, warpAdapter, m_instance->adapterCount());
+      return adapter->QueryInterface(riid, ppvAdapter);
+    }
+
     static bool s_errorShown = false;
 
     if (!std::exchange(s_errorShown, true))

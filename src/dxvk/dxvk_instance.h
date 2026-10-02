@@ -124,7 +124,19 @@ namespace dxvk {
      */
     Rc<DxvkAdapter> enumAdapters(
             uint32_t      index) const;
-    
+
+    /**
+     * \brief Software adapter that stands in for WARP
+     *
+     * The first CPU device, such as lavapipe. It is kept apart
+     * from the enumerated adapters, which leave out CPU devices
+     * whenever a GPU is present.
+     * \returns The adapter, or \c nullptr without a CPU device.
+     */
+    Rc<DxvkAdapter> warpAdapter() const {
+      return m_warpAdapter;
+    }
+
     /**
      * \brief Finds adapter by LUID
      * 
@@ -208,6 +220,7 @@ namespace dxvk {
 
     std::vector<DxvkExtensionProvider*> m_extProviders;
     std::vector<Rc<DxvkAdapter>> m_adapters;
+    Rc<DxvkAdapter>              m_warpAdapter;
 
     bool initVulkanLoader(
       const DxvkInstanceImportInfo& args);
