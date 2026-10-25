@@ -150,6 +150,17 @@ namespace dxvk {
       const Rc<DxvkLatencyTracker>& tracker);
 
     /**
+     * \brief Retires a frame that was never presented
+     *
+     * Used after device loss, when the present is not submitted.
+     * Queues the frame as failed, so that \c signalFrame can
+     * still signal it in order with earlier frames.
+     * \param [in] frameId Frame ID
+     */
+    void skipFrame(
+            uint64_t                frameId);
+
+    /**
      * \brief Changes sync interval
      *
      * Changes the Vulkan present mode as necessary.

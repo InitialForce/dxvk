@@ -316,6 +316,22 @@ namespace dxvk {
   }
 
 
+  void Presenter::skipFrame(
+          uint64_t                frameId) {
+    if (!m_hasPresentWait || !frameId)
+      return;
+
+    std::lock_guard lock(m_frameMutex);
+
+    auto& frame = m_frameQueue.emplace();
+    frame.frameId = frameId;
+    frame.mode = m_presentMode;
+    frame.result = VK_ERROR_DEVICE_LOST;
+
+    m_frameCond.notify_one();
+  }
+
+
   bool Presenter::supportsColorSpace(VkColorSpaceKHR colorspace) {
     std::lock_guard lock(m_surfaceMutex);
 

@@ -190,6 +190,11 @@ namespace dxvk {
         // Don't submit anything after device loss
         // so that drivers get a chance to recover
         entry.result = VK_ERROR_DEVICE_LOST;
+
+        // The presenter still has to retire the frame,
+        // or the app waits on its frame latency forever
+        if (entry.present.presenter != nullptr)
+          entry.present.presenter->skipFrame(entry.present.frameId);
       }
 
       if (entry.status)
@@ -201,18 +206,25 @@ namespace dxvk {
       // On success, pass it on to the queue thread
       { std::unique_lock<dxvk::mutex> lock(m_mutex);
 
-        bool doForward = (entry.result == VK_SUCCESS) ||
-          (entry.present.presenter != nullptr && entry.result != VK_ERROR_DEVICE_LOST);
+        bool isPresent = entry.present.presenter != nullptr;
+        bool deviceLost = entry.result == VK_ERROR_DEVICE_LOST;
 
-        if (doForward) {
-          m_finishQueue.push(std::move(entry));
-        } else {
+        if (entry.result != VK_SUCCESS && (!isPresent || deviceLost)) {
           Logger::err(str::format("DxvkSubmissionQueue: Command submission failed: ", entry.result));
           m_lastError = entry.result;
 
-          if (m_lastError != VK_ERROR_DEVICE_LOST)
+          if (!deviceLost)
             m_device->waitForIdle();
         }
+
+        // After device loss, the finish thread still has to release the
+        // command list's resources and signal its objects, and signal the
+        // frame of a present. Nothing else would wake a thread that waits
+        // for a resource or for its frame latency.
+        bool doForward = (entry.result == VK_SUCCESS) || isPresent || deviceLost;
+
+        if (doForward)
+          m_finishQueue.push(std::move(entry));
 
         m_submitQueue.pop();
         m_submitCond.notify_all();
