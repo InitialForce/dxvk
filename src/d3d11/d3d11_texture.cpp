@@ -259,11 +259,20 @@ namespace dxvk {
 
       ExportImageInfo();
     }
+
+    // Without a keyed mutex, nothing tells Vulkan when another device reads
+    // the shared memory, so the immediate context waits for the GPU on Flush.
+    if (imageInfo.sharing.mode != DxvkSharedHandleMode::None
+     && !(m_desc.MiscFlags & D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX)) {
+      m_unsyncShared = true;
+      m_device->AddUnsyncSharedTexture();
+    }
   }
   
   
   D3D11CommonTexture::~D3D11CommonTexture() {
-    
+    if (m_unsyncShared)
+      m_device->RemoveUnsyncSharedTexture();
   }
   
   

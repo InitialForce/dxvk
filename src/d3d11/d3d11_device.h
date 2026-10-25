@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <mutex>
 #include <vector>
 
@@ -469,6 +470,18 @@ namespace dxvk {
 
     bool Is11on12Device() const;
 
+    void AddUnsyncSharedTexture() {
+      m_unsyncSharedTextures += 1;
+    }
+
+    void RemoveUnsyncSharedTexture() {
+      m_unsyncSharedTextures -= 1;
+    }
+
+    bool HasUnsyncSharedTextures() const {
+      return m_unsyncSharedTextures.load() != 0u;
+    }
+
     bool LockImage(
       const Rc<DxvkImage>&            Image,
             VkImageUsageFlags         Usage);
@@ -488,6 +501,8 @@ namespace dxvk {
     }
     
   private:
+
+    std::atomic<uint32_t> m_unsyncSharedTextures = { 0u };
     
     D3D11DXGIDevice*                m_container;
 

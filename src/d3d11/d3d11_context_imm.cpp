@@ -1226,6 +1226,14 @@ namespace dxvk {
       m_flushReason = "Explicit Flush";
 
     ExecuteFlush(GpuFlushType::ExplicitFlush, hEvent, true);
+
+    // A shared texture without a keyed mutex is read by the other device
+    // directly from memory, with no Vulkan synchronization. WPF's D3DImage
+    // copies such a texture on D3D9Ex right after the app's Flush, and
+    // Windows drivers order that copy after the flushed work. Do the same
+    // by waiting for the GPU, or the copy can read an unfinished frame.
+    if (m_parent->HasUnsyncSharedTextures())
+      m_submissionFence->wait(m_submissionId);
   }
 
 

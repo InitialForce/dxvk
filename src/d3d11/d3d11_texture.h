@@ -587,6 +587,7 @@ namespace dxvk {
     small_vector<MappedInfo, 6>   m_mapInfo;
 
     void*                         m_mapPtr = nullptr;
+    bool                          m_unsyncShared = false;
 
     void CreateMappedBuffer(
             UINT                  Subresource);
