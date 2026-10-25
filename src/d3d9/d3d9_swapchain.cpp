@@ -117,6 +117,11 @@ namespace dxvk {
     if (unlikely(m_parent->IsDeviceLost()))
       return D3DERR_DEVICELOST;
 
+    // A lost Vulkan device runs no more work. Report it the way D3D9Ex
+    // reports a removed adapter, so that the app creates a new device.
+    if (unlikely(m_parent->GetDXVKDevice()->getDeviceStatus() == VK_ERROR_DEVICE_LOST))
+      return D3DERR_DEVICEREMOVED;
+
     // If we have no backbuffers, error out.
     // This handles the case where a ::Reset failed due to OOM
     // or whatever.

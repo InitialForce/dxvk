@@ -4231,6 +4231,9 @@ namespace dxvk {
 
 
   HRESULT STDMETHODCALLTYPE D3D9DeviceEx::CheckDeviceState(HWND hDestinationWindow) {
+    if (unlikely(m_dxvkDevice->getDeviceStatus() == VK_ERROR_DEVICE_LOST))
+      return D3DERR_DEVICEREMOVED;
+
     static bool s_errorShown = false;
 
     if (!std::exchange(s_errorShown, true))
