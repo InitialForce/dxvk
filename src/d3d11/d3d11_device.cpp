@@ -2000,6 +2000,42 @@ namespace dxvk {
   }
 
 
+  void D3D11Device::AddMutexlessSharedImage(const Rc<DxvkImage>& image) {
+    std::lock_guard<dxvk::mutex> lock(m_mutexlessSharedImageLock);
+    m_mutexlessSharedImages.push_back(image);
+    m_mutexlessSharedImageCount += 1;
+  }
+
+
+  void D3D11Device::RemoveMutexlessSharedImage(const Rc<DxvkImage>& image) {
+    std::lock_guard<dxvk::mutex> lock(m_mutexlessSharedImageLock);
+
+    for (auto i = m_mutexlessSharedImages.begin(); i != m_mutexlessSharedImages.end(); i++) {
+      if (*i == image) {
+        m_mutexlessSharedImages.erase(i);
+        m_mutexlessSharedImageCount -= 1;
+        return;
+      }
+    }
+  }
+
+
+  void D3D11Device::WaitForMutexlessSharedImageWrites() {
+    small_vector<Rc<DxvkImage>, 4> written;
+
+    { std::lock_guard<dxvk::mutex> lock(m_mutexlessSharedImageLock);
+
+      for (const auto& image : m_mutexlessSharedImages) {
+        if (image->isInUse(DxvkAccess::Write))
+          written.push_back(image);
+      }
+    }
+
+    for (const auto& image : written)
+      m_dxvkDevice->waitForResource(*image, DxvkAccess::Write);
+  }
+
+
   bool D3D11Device::Is11on12Device() const {
     return m_container->Is11on12Device();
   }

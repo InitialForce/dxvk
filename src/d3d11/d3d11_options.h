@@ -78,6 +78,11 @@ namespace dxvk {
     /// performs the required shader and resolve fixups.
     bool disableMsaa = false;
 
+    /// Makes an explicit Flush wait until the GPU has finished the flushed
+    /// writes to textures shared without a keyed mutex, as Windows drivers
+    /// order another device's access after a Flush.
+    bool waitForSharedWritesOnFlush = true;
+
     /// Dynamic resources with the given bind flags will be allocated
     /// in cached system memory. Enabled automatically when recording
     /// an api trace.

@@ -1231,9 +1231,13 @@ namespace dxvk {
     // directly from memory, with no Vulkan synchronization. WPF's D3DImage
     // copies such a texture on D3D9Ex right after the app's Flush, and
     // Windows drivers order that copy after the flushed work. Do the same
-    // by waiting for the GPU, or the copy can read an unfinished frame.
-    if (m_parent->HasUnsyncSharedTextures())
-      m_submissionFence->wait(m_submissionId);
+    // by waiting for the flushed writes to those textures, or the copy can
+    // read an unfinished frame. The CS thread must have recorded the work
+    // before the images report that they are in use.
+    if (m_parent->HasMutexlessSharedImages()) {
+      SynchronizeCsThread(DxvkCsThread::SynchronizeAll);
+      m_parent->WaitForMutexlessSharedImageWrites();
+    }
   }
 
 

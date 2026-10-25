@@ -470,17 +470,15 @@ namespace dxvk {
 
     bool Is11on12Device() const;
 
-    void AddUnsyncSharedTexture() {
-      m_unsyncSharedTextures += 1;
+    void AddMutexlessSharedImage(const Rc<DxvkImage>& image);
+
+    void RemoveMutexlessSharedImage(const Rc<DxvkImage>& image);
+
+    bool HasMutexlessSharedImages() const {
+      return m_mutexlessSharedImageCount.load() != 0u;
     }
 
-    void RemoveUnsyncSharedTexture() {
-      m_unsyncSharedTextures -= 1;
-    }
-
-    bool HasUnsyncSharedTextures() const {
-      return m_unsyncSharedTextures.load() != 0u;
-    }
+    void WaitForMutexlessSharedImageWrites();
 
     bool LockImage(
       const Rc<DxvkImage>&            Image,
@@ -502,7 +500,9 @@ namespace dxvk {
     
   private:
 
-    std::atomic<uint32_t> m_unsyncSharedTextures = { 0u };
+    dxvk::mutex                     m_mutexlessSharedImageLock;
+    std::vector<Rc<DxvkImage>>      m_mutexlessSharedImages;
+    std::atomic<uint32_t>           m_mutexlessSharedImageCount = { 0u };
     
     D3D11DXGIDevice*                m_container;
 
