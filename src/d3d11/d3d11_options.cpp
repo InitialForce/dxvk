@@ -23,7 +23,7 @@ namespace dxvk {
     this->clampNegativeLodBias  = config.getOption<bool>("d3d11.clampNegativeLodBias", false);
     this->forceSampleRateShading = config.getOption<bool>("d3d11.forceSampleRateShading", false);
     this->disableMsaa           = config.getOption<bool>("d3d11.disableMsaa", false);
-    this->waitForSharedWritesOnFlush = config.getOption<bool>("d3d11.waitForSharedWritesOnFlush", true);
+    this->waitForSharedWritesOnFlush = config.getOption<bool>("d3d11.waitForSharedWritesOnFlush", false);
     this->enableContextLock     = config.getOption<bool>("d3d11.enableContextLock", false);
     this->deferSurfaceCreation  = config.getOption<bool>("dxgi.deferSurfaceCreation", false);
     this->maxFrameLatency       = config.getOption<int32_t>("dxgi.maxFrameLatency", 0);

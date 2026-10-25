@@ -260,8 +260,11 @@ namespace dxvk {
       ExportImageInfo();
     }
 
-    // Without a keyed mutex, nothing tells Vulkan when another device reads
-    // the shared memory, so a Flush waits for the writes to this image.
+    // A texture shared without a keyed mutex is assumed to be handed over
+    // the way WPF's D3DImage does it: the app calls Flush, and another
+    // device then reads the shared memory with no synchronization that
+    // Vulkan sees. Windows drivers order that read after the flushed work,
+    // so with the option set, Flush waits for the writes to this image.
     if (imageInfo.sharing.mode != DxvkSharedHandleMode::None
      && !(m_desc.MiscFlags & D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX)
      && m_device->GetOptions()->waitForSharedWritesOnFlush) {

@@ -81,7 +81,7 @@ namespace dxvk {
     /// Makes an explicit Flush wait until the GPU has finished the flushed
     /// writes to textures shared without a keyed mutex, as Windows drivers
     /// order another device's access after a Flush.
-    bool waitForSharedWritesOnFlush = true;
+    bool waitForSharedWritesOnFlush = false;
 
     /// Dynamic resources with the given bind flags will be allocated
     /// in cached system memory. Enabled automatically when recording

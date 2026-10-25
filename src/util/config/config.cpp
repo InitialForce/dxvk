@@ -20,6 +20,14 @@ namespace dxvk {
 
 
   const static ProfileList g_profiles = {
+    /* Motion Catalyst - hands D3D11 textures     *
+     * shared without a keyed mutex to WPF's      *
+     * D3DImage, which copies them right after    *
+     * Flush.                                     */
+    { R"(\\MotionCatalyst\.exe$)", {{
+      { "d3d11.waitForSharedWritesOnFlush", "True" },
+    }} },
+
     /**********************************************/
     /* D3D12 GAMES (vkd3d-proton with dxvk dxgi)  */
     /**********************************************/
