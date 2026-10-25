@@ -112,6 +112,18 @@ namespace dxvk {
   }
 
 
+  void DxvkSubmissionQueue::waitForDeviceIdleAfterError() {
+    // DxvkDevice::waitForIdle would wait for this thread's own queue to
+    // drain, so wait for the Vulkan device directly.
+    lockDeviceQueue();
+
+    if (m_device->vkd()->vkDeviceWaitIdle(m_device->vkd()->device()) != VK_SUCCESS)
+      Logger::err("DxvkSubmissionQueue: Failed to wait for device idle");
+
+    unlockDeviceQueue();
+  }
+
+
   void DxvkSubmissionQueue::lockDeviceQueue() {
     m_mutexQueue.lock();
 
@@ -203,32 +215,28 @@ namespace dxvk {
       if (entry.result == VK_ERROR_DEVICE_LOST && m_checkpoints)
         m_checkpoints->printHangInfo();
 
-      // On success, pass it on to the queue thread
+      bool isPresent = entry.present.presenter != nullptr;
+      bool deviceLost = entry.result == VK_ERROR_DEVICE_LOST;
+      bool failed = entry.result != VK_SUCCESS && (!isPresent || deviceLost);
+
+      // Pass every entry on to the queue thread. A command list that failed
+      // to submit still has to release its resources and signal its objects,
+      // and a present still has to signal its frame. Nothing else would wake
+      // a thread that waits for a resource or for its frame latency.
       { std::unique_lock<dxvk::mutex> lock(m_mutex);
 
-        bool isPresent = entry.present.presenter != nullptr;
-        bool deviceLost = entry.result == VK_ERROR_DEVICE_LOST;
-
-        if (entry.result != VK_SUCCESS && (!isPresent || deviceLost)) {
+        if (failed) {
           Logger::err(str::format("DxvkSubmissionQueue: Command submission failed: ", entry.result));
           m_lastError = entry.result;
-
-          if (!deviceLost)
-            m_device->waitForIdle();
         }
 
-        // After device loss, the finish thread still has to release the
-        // command list's resources and signal its objects, and signal the
-        // frame of a present. Nothing else would wake a thread that waits
-        // for a resource or for its frame latency.
-        bool doForward = (entry.result == VK_SUCCESS) || isPresent || deviceLost;
-
-        if (doForward)
-          m_finishQueue.push(std::move(entry));
-
+        m_finishQueue.push(std::move(entry));
         m_submitQueue.pop();
         m_submitCond.notify_all();
       }
+
+      if (failed && !deviceLost)
+        waitForDeviceIdleAfterError();
 
       // Good time to invoke allocator tasks now since we
       // expect this to get called somewhat periodically.
@@ -265,7 +273,8 @@ namespace dxvk {
       if (entry.submit.cmdList != nullptr) {
         VkResult status = m_lastError.load();
 
-        if (status != VK_ERROR_DEVICE_LOST) {
+        // A command list that failed to submit never signals its timelines
+        if (status != VK_ERROR_DEVICE_LOST && entry.result == VK_SUCCESS) {
           std::array<VkSemaphore, 2> semaphores = { m_semaphores.graphics, m_semaphores.transfer };
           std::array<uint64_t, 2> timelines = { entry.timelines.graphics, entry.timelines.transfer };
 
@@ -290,7 +299,7 @@ namespace dxvk {
           m_lastError = status;
 
           if (status != VK_ERROR_DEVICE_LOST)
-            m_device->waitForIdle();
+            waitForDeviceIdleAfterError();
         }
       } else if (entry.present.presenter != nullptr) {
         // Signal the frame and then immediately destroy the reference.

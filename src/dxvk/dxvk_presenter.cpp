@@ -318,6 +318,17 @@ namespace dxvk {
 
   void Presenter::skipFrame(
           uint64_t                frameId) {
+    // The image acquired for this present is never presented, so end the
+    // pending present here, or acquireNextImage and destroyResources wait
+    // for it forever.
+    { std::lock_guard lock(m_surfaceMutex);
+
+      m_presentPending = false;
+      m_presentRepaint = false;
+
+      m_surfaceCond.notify_all();
+    }
+
     if (!m_hasPresentWait || !frameId)
       return;
 
