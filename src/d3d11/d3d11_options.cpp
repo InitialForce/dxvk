@@ -24,6 +24,9 @@ namespace dxvk {
     this->forceSampleRateShading = config.getOption<bool>("d3d11.forceSampleRateShading", false);
     this->disableMsaa           = config.getOption<bool>("d3d11.disableMsaa", false);
     this->waitForSharedWritesOnFlush = config.getOption<bool>("d3d11.waitForSharedWritesOnFlush", false);
+
+    if (this->waitForSharedWritesOnFlush)
+      Logger::info("D3D11: Flush waits for GPU writes to shared textures without a keyed mutex");
     this->enableContextLock     = config.getOption<bool>("d3d11.enableContextLock", false);
     this->deferSurfaceCreation  = config.getOption<bool>("dxgi.deferSurfaceCreation", false);
     this->maxFrameLatency       = config.getOption<int32_t>("dxgi.maxFrameLatency", 0);

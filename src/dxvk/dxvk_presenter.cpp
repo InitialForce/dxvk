@@ -320,26 +320,27 @@ namespace dxvk {
           uint64_t                frameId) {
     // The image acquired for this present is never presented, so end the
     // pending present here, or acquireNextImage and destroyResources wait
-    // for it forever.
-    { std::lock_guard lock(m_surfaceMutex);
+    // for it forever. Everything happens under the surface lock, because
+    // destroySwapchain writes m_hasPresentWait and m_presentMode under it.
+    // Queueing the frame first means destroySwapchain, which waits for the
+    // frame queue to drain, cannot run until the frame thread completed it.
+    std::lock_guard lock(m_surfaceMutex);
 
-      m_presentPending = false;
-      m_presentRepaint = false;
+    if (m_hasPresentWait && frameId) {
+      std::lock_guard frameLock(m_frameMutex);
 
-      m_surfaceCond.notify_all();
+      auto& frame = m_frameQueue.emplace();
+      frame.frameId = frameId;
+      frame.mode = m_presentMode;
+      frame.result = VK_ERROR_DEVICE_LOST;
+
+      m_frameCond.notify_one();
     }
 
-    if (!m_hasPresentWait || !frameId)
-      return;
+    m_presentPending = false;
+    m_presentRepaint = false;
 
-    std::lock_guard lock(m_frameMutex);
-
-    auto& frame = m_frameQueue.emplace();
-    frame.frameId = frameId;
-    frame.mode = m_presentMode;
-    frame.result = VK_ERROR_DEVICE_LOST;
-
-    m_frameCond.notify_one();
+    m_surfaceCond.notify_all();
   }
 
 
