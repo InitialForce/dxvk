@@ -30,6 +30,10 @@ namespace dxvk {
     // Unconditionally enable BDA usage
     m_info.usage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
 
+    // Memory that another API imported must stay where it is
+    if (m_info.sharing.mode != DxvkSharedHandleMode::None)
+      m_stableAddress = true;
+
     // Create and assign actual buffer resource
     assignStorage(allocateStorage());
   }

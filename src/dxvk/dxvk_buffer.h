@@ -38,6 +38,10 @@ namespace dxvk {
 
     /// Debug name.
     const char* debugName = nullptr;
+
+    /// Shared handle info. Only export is supported for buffers. An
+    /// exported buffer gets a dedicated allocation and never moves.
+    DxvkSharedHandleInfo sharing = { };
   };
 
 
@@ -286,6 +290,11 @@ namespace dxvk {
       info.usage = m_info.usage;
       info.size = m_info.size;
       m_sharingMode.fill(info);
+
+      if (m_info.sharing.mode == DxvkSharedHandleMode::Export) {
+        allocationInfo.handleType = m_info.sharing.type;
+        return m_allocator->createSharedBufferResource(info, allocationInfo);
+      }
 
       return m_allocator->createBufferResource(info, allocationInfo, cache);
     }

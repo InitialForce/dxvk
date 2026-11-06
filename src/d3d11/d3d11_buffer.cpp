@@ -85,6 +85,16 @@ namespace dxvk {
         info.access |= VK_ACCESS_HOST_WRITE_BIT;
     }
 
+    // Buffers shared through an NT handle get exportable memory, so another
+    // API (for example CUDA) can import it. Only GPU-only buffers qualify.
+    if ((pDesc->MiscFlags & D3D11_RESOURCE_MISC_SHARED_NTHANDLE)
+     && pDesc->Usage == D3D11_USAGE_DEFAULT && !pDesc->CPUAccessFlags
+     && !(pDesc->MiscFlags & (D3D11_RESOURCE_MISC_TILED | D3D11_RESOURCE_MISC_TILE_POOL))
+     && !p11on12Info) {
+      info.sharing.mode = DxvkSharedHandleMode::Export;
+      info.sharing.type = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
+    }
+
     if (p11on12Info) {
       m_11on12 = *p11on12Info;
 

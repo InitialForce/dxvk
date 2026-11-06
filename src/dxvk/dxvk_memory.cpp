@@ -1112,6 +1112,71 @@ namespace dxvk {
   }
 
 
+  Rc<DxvkResourceAllocation> DxvkMemoryAllocator::createSharedBufferResource(
+    const VkBufferCreateInfo&         createInfo,
+    const DxvkAllocationInfo&         allocationInfo) {
+    auto vk = m_device->vkd();
+
+    VkExternalMemoryBufferCreateInfo externalInfo = { VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_BUFFER_CREATE_INFO };
+    externalInfo.handleTypes = allocationInfo.handleType;
+
+    VkBufferCreateInfo bufferInfo = createInfo;
+    externalInfo.pNext = std::exchange(bufferInfo.pNext, &externalInfo);
+
+    VkBuffer buffer = VK_NULL_HANDLE;
+    VkResult vr = vk->vkCreateBuffer(vk->device(), &bufferInfo, nullptr, &buffer);
+
+    if (vr != VK_SUCCESS) {
+      Logger::err(str::format("Failed to create shared buffer: ", vr,
+        "\n  size:    ", createInfo.size,
+        "\n  usage:   ", std::hex, createInfo.usage));
+      return nullptr;
+    }
+
+    VkBufferMemoryRequirementsInfo2 requirementInfo = { VK_STRUCTURE_TYPE_BUFFER_MEMORY_REQUIREMENTS_INFO_2 };
+    requirementInfo.buffer = buffer;
+
+    VkMemoryRequirements2 requirements = { VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2 };
+    vk->vkGetBufferMemoryRequirements2(vk->device(), &requirementInfo, &requirements);
+
+    VkExportMemoryAllocateInfo exportInfo = { VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO };
+    exportInfo.handleTypes = allocationInfo.handleType;
+
+    VkMemoryDedicatedAllocateInfo dedicatedInfo = { VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO, &exportInfo };
+    dedicatedInfo.buffer = buffer;
+
+    Rc<DxvkResourceAllocation> allocation = allocateDedicatedMemory(
+      requirements.memoryRequirements, allocationInfo, &dedicatedInfo);
+
+    if (!allocation) {
+      Logger::err(str::format("Failed to allocate ", requirements.memoryRequirements.size,
+        " bytes of exportable memory for a shared buffer"));
+      vk->vkDestroyBuffer(vk->device(), buffer, nullptr);
+      return nullptr;
+    }
+
+    allocation->m_flags.set(DxvkAllocationFlag::OwnsBuffer);
+    allocation->m_flags.clr(DxvkAllocationFlag::CanMove);
+    allocation->m_buffer = buffer;
+    allocation->m_bufferOffset = 0u;
+    allocation->m_bufferAddress = 0u;
+
+    vr = vk->vkBindBufferMemory(vk->device(), buffer, allocation->m_memory,
+      allocation->m_address & DxvkPageAllocator::ChunkAddressMask);
+
+    if (vr != VK_SUCCESS) {
+      throw DxvkError(str::format("Failed to bind shared buffer memory: ", vr,
+        "\n  size:    ", createInfo.size));
+    }
+
+    if (createInfo.usage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT)
+      allocation->m_bufferAddress = getBufferDeviceAddress(buffer);
+
+    allocation->initKmtHandles(allocationInfo.handleType);
+    return allocation;
+  }
+
+
   Rc<DxvkResourceAllocation> DxvkMemoryAllocator::createImageResource(
     const VkImageCreateInfo&          createInfo,
     const DxvkAllocationInfo&         allocationInfo,

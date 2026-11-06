@@ -290,13 +290,48 @@ namespace dxvk {
   }
 
 
+  HRESULT D3D11DXGIResource::CreateBufferSharedHandle(
+          D3D11Buffer*            pBuffer,
+    const SECURITY_ATTRIBUTES*    pAttributes,
+          DWORD                   dwAccess,
+          LPCWSTR                 lpName,
+          HANDLE*                 pHandle) {
+    if (pHandle == nullptr || !(pBuffer->Desc()->MiscFlags & D3D11_RESOURCE_MISC_SHARED_NTHANDLE))
+      return E_INVALIDARG;
+
+    if (lpName)
+      Logger::warn("CreateSharedHandle: naming shared buffers not supported");
+
+    auto storage = pBuffer->GetBuffer()->storage();
+    D3DKMT_HANDLE local = storage->kmtLocal();
+
+    if (!local) {
+      Logger::err("CreateSharedHandle: buffer memory is not exportable");
+      return E_INVALIDARG;
+    }
+
+    OBJECT_ATTRIBUTES attr = { };
+    attr.Length = sizeof(attr);
+    attr.SecurityDescriptor = const_cast<SECURITY_ATTRIBUTES*>(pAttributes);
+
+    if (D3DKMTShareObjects(1, &local, &attr, dwAccess, pHandle))
+      return E_FAIL;
+
+    return S_OK;
+  }
+
+
   HRESULT STDMETHODCALLTYPE D3D11DXGIResource::CreateSharedHandle(
     const SECURITY_ATTRIBUTES*    pAttributes,
           DWORD                   dwAccess,
           LPCWSTR                 lpName,
           HANDLE*                 pHandle) {
-    auto texture = GetCommonTexture(m_resource);
     if (pHandle) *pHandle = nullptr;
+
+    if (auto buffer = GetCommonBuffer(m_resource))
+      return CreateBufferSharedHandle(buffer, pAttributes, dwAccess, lpName, pHandle);
+
+    auto texture = GetCommonTexture(m_resource);
     if (texture == nullptr || pHandle == nullptr ||
         !(texture->Desc()->MiscFlags & D3D11_RESOURCE_MISC_SHARED_NTHANDLE))
       return E_INVALIDARG;

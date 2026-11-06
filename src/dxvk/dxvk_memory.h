@@ -1204,6 +1204,19 @@ namespace dxvk {
             DxvkLocalAllocationCache*   allocationCache);
 
     /**
+     * \brief Creates a buffer with exportable memory
+     *
+     * The buffer gets a dedicated allocation that can be
+     * exported with the handle type in the allocation info.
+     * \param [in] createInfo Buffer create info
+     * \param [in] allocationInfo Allocation properties
+     * \returns Buffer resource
+     */
+    Rc<DxvkResourceAllocation> createSharedBufferResource(
+      const VkBufferCreateInfo&         createInfo,
+      const DxvkAllocationInfo&         allocationInfo);
+
+    /**
      * \brief Creates image resource
      *
      * \param [in] createInfo Image create info

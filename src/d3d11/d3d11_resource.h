@@ -4,6 +4,8 @@
 
 namespace dxvk {
 
+  class D3D11Buffer;
+
   /**
    * \brief Common resource description
    * 
@@ -148,6 +150,14 @@ namespace dxvk {
     HRESULT GetKeyedMutex(void **ppvObject);
 
   private:
+
+    HRESULT CreateBufferSharedHandle(
+            D3D11Buffer*            pBuffer,
+      const SECURITY_ATTRIBUTES*    pAttributes,
+            DWORD                   dwAccess,
+            LPCWSTR                 lpName,
+            HANDLE*                 pHandle);
+
 
     ID3D11Resource* m_resource;
     D3D11DXGIKeyedMutex m_keyedMutex;
