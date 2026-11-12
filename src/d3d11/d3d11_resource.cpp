@@ -290,6 +290,23 @@ namespace dxvk {
   }
 
 
+  /* Object attributes for a new shared handle: the security descriptor
+   * inside SECURITY_ATTRIBUTES, and OBJ_INHERIT when the handle is inheritable. */
+  static OBJECT_ATTRIBUTES SharedHandleAttributes(const SECURITY_ATTRIBUTES* pAttributes) {
+    OBJECT_ATTRIBUTES attr = { };
+    attr.Length = sizeof(attr);
+
+    if (pAttributes) {
+      attr.SecurityDescriptor = pAttributes->lpSecurityDescriptor;
+
+      if (pAttributes->bInheritHandle)
+        attr.Attributes |= OBJ_INHERIT;
+    }
+
+    return attr;
+  }
+
+
   HRESULT D3D11DXGIResource::CreateBufferSharedHandle(
           D3D11Buffer*            pBuffer,
     const SECURITY_ATTRIBUTES*    pAttributes,
@@ -310,9 +327,7 @@ namespace dxvk {
       return E_INVALIDARG;
     }
 
-    OBJECT_ATTRIBUTES attr = { };
-    attr.Length = sizeof(attr);
-    attr.SecurityDescriptor = const_cast<SECURITY_ATTRIBUTES*>(pAttributes);
+    OBJECT_ATTRIBUTES attr = SharedHandleAttributes(pAttributes);
 
     if (D3DKMTShareObjects(1, &local, &attr, dwAccess, pHandle))
       return E_FAIL;
@@ -336,9 +351,7 @@ namespace dxvk {
         !(texture->Desc()->MiscFlags & D3D11_RESOURCE_MISC_SHARED_NTHANDLE))
       return E_INVALIDARG;
 
-    OBJECT_ATTRIBUTES attr = { };
-    attr.Length = sizeof(attr);
-    attr.SecurityDescriptor = const_cast<SECURITY_ATTRIBUTES*>(pAttributes);
+    OBJECT_ATTRIBUTES attr = SharedHandleAttributes(pAttributes);
 
     WCHAR buffer[MAX_PATH];
     UNICODE_STRING name_str;
@@ -353,7 +366,7 @@ namespace dxvk {
         name_str.Buffer = buffer;
 
         attr.ObjectName = &name_str;
-        attr.Attributes = OBJ_CASE_INSENSITIVE;
+        attr.Attributes |= OBJ_CASE_INSENSITIVE;
     }
 
     D3DKMT_HANDLE local = texture->GetImage()->storage()->kmtLocal();

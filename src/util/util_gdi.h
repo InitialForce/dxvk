@@ -307,6 +307,9 @@ namespace dxvk {
   } OBJECT_ATTRIBUTES;
 
   #define OBJ_CASE_INSENSITIVE 0x00000040
+  #ifndef OBJ_INHERIT
+  #define OBJ_INHERIT 0x00000002
+  #endif
 
   /* undocumented D3D runtime data descriptors */
 
