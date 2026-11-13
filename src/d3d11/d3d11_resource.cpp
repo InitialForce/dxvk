@@ -307,6 +307,17 @@ namespace dxvk {
   }
 
 
+  /* Wine's server makes every handle from D3DKMTShareObjects inheritable,
+   * whatever OBJ_INHERIT says, so clear the flag unless the caller asked for it.
+   * On Windows the flag is already clear and this changes nothing. */
+  static void SetSharedHandleInheritance(HANDLE handle, const SECURITY_ATTRIBUTES* pAttributes) {
+#ifdef _WIN32
+    if (!pAttributes || !pAttributes->bInheritHandle)
+      SetHandleInformation(handle, HANDLE_FLAG_INHERIT, 0);
+#endif
+  }
+
+
   HRESULT D3D11DXGIResource::CreateBufferSharedHandle(
           D3D11Buffer*            pBuffer,
     const SECURITY_ATTRIBUTES*    pAttributes,
@@ -332,6 +343,7 @@ namespace dxvk {
     if (D3DKMTShareObjects(1, &local, &attr, dwAccess, pHandle))
       return E_FAIL;
 
+    SetSharedHandleInheritance(*pHandle, pAttributes);
     return S_OK;
   }
 
@@ -373,9 +385,12 @@ namespace dxvk {
     auto keyedMutex = texture->GetImage()->getKeyedMutex();
     if (keyedMutex) {
       D3DKMT_HANDLE handles[] = {local, keyedMutex->kmtLocal(), keyedMutex->getSyncObject()->kmtLocal()};
-      if (!D3DKMTShareObjects(3, handles, &attr, dwAccess, pHandle))
+      if (!D3DKMTShareObjects(3, handles, &attr, dwAccess, pHandle)) {
+        SetSharedHandleInheritance(*pHandle, pAttributes);
         return S_OK;
+      }
     } else if (!D3DKMTShareObjects(1, &local, &attr, dwAccess, pHandle)) {
+      SetSharedHandleInheritance(*pHandle, pAttributes);
       return S_OK;
     }
 
